@@ -9,7 +9,7 @@ export function createProtectedRouter() {
       });
     }
     console.log(ctx.session);
-    if (!ctx.user) {
+    if (!ctx.session) {
       throw new trpc.TRPCError({
         code: "UNAUTHORIZED",
         message: "You have no access",

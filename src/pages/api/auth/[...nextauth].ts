@@ -10,24 +10,6 @@ import { loginSchema } from "../../../common/validation/auth";
 import { verify } from "argon2";
 
 export const authOptions: NextAuthOptions = {
-  callbacks: {
-    session({ session, token }) {
-      if (token) {
-        session.id = token.id as string;
-      }
-
-      return session;
-    },
-    jwt: async ({ token, user }) => {
-      if (user) {
-        token.id = user.id;
-        token.email = user.email;
-        token.username = user.username;
-      }
-
-      return token;
-    },
-  },
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
@@ -55,12 +37,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        return {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          access: user.instrumentsAccess,
-        };
+        return user;
       },
     }),
   ],

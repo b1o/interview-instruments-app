@@ -32,7 +32,7 @@ const Instruments = () => {
     );
 
   const forceUpdateButton = () => {
-    if (sessionData?.id) {
+    if (sessionData) {
       return (
         <button
           onClick={() => mutate()}

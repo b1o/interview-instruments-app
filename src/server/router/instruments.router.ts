@@ -1,11 +1,12 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Instrument, Prisma, PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { unstable_getServerSession } from "next-auth";
 import { authOptions } from "pages/api/auth/[...nextauth]";
 import { z } from "zod";
+import { createRouter } from "./context";
 import { createProtectedRouter } from "./protected-router";
 
-export const instrumentsRouter = createProtectedRouter()
+export const instrumentsRouter = createRouter()
   .mutation("update", {
     async resolve({ ctx }) {
       const instrumentsRes = await fetch(
@@ -13,54 +14,28 @@ export const instrumentsRouter = createProtectedRouter()
       );
       const instruments = await instrumentsRes.json();
 
-      const dbOps = [];
+      const data: Instrument[] = [];
       for (const coin of instruments) {
-        dbOps.push(
-          ctx.prisma.instrument.upsert({
-            where: { instrument_symbol: coin.symbol },
-            create: {
-              instrument_symbol: coin.symbol,
-              instrument_name: coin.name,
-              usd_price: coin.market_data.current_price.usd,
-              image: coin.image.small,
-            },
-            update: {
-              usd_price: coin.market_data.current_price.usd,
-              image: coin.image.small,
-            },
-          })
-        );
+        const res = await ctx.prisma.instrument.upsert({
+          where: { instrument_symbol: coin.symbol },
+          create: {
+            instrument_symbol: coin.symbol,
+            instrument_name: coin.name,
+            usd_price: coin.market_data.current_price.usd,
+            image: coin.image.small,
+          },
+          update: {
+            usd_price: coin.market_data.current_price.usd,
+            image: coin.image.small,
+          },
+        });
+        data.push(res);
       }
-      const data = await ctx.prisma.$transaction(dbOps);
 
       return {
         data,
       };
     },
-  })
-  .middleware(({ ctx, next }) => {
-    if (!ctx.user && ctx.bypass === process.env.INSTRUMENTS_API_URL) {
-      return next({
-        ctx: {
-          ...ctx,
-          session: {},
-        },
-      });
-    }
-
-    if (!ctx.user?.instrumentsAccess) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "You have no access to this page",
-      });
-    }
-
-    return next({
-      ctx: {
-        ...ctx,
-        session: { ...ctx.session, user: ctx.session!.user },
-      },
-    });
   })
   .query("get", {
     async resolve({ ctx }) {
@@ -80,6 +55,19 @@ export const instrumentsRouter = createProtectedRouter()
       const result = await ctx.prisma.instrument.findFirst({
         where: { instrument_symbol },
       });
+      console.log(instrument_symbol, typeof instrument_symbol);
+      if (!instrument_symbol) {
+        return null;
+      }
+      if (
+        !ctx.user?.instrumentsAccess &&
+        ctx.bypass !== (process.env.BYPASS_API_KEY as string)
+      ) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You have no access",
+        });
+      }
 
       if (!result) {
         throw new TRPCError({

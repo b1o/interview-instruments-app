@@ -7,4 +7,12 @@ import { createContext } from "../../../server/router/context";
 export default createNextApiHandler({
   router: appRouter,
   createContext: createContext,
+  onError({error}) {
+    if(error.code === 'INTERNAL_SERVER_ERROR') {
+      console.log('Something went wrong', error);
+    }
+  },
+  batching: {
+    enabled: true
+  }
 });

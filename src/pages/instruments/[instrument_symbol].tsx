@@ -6,9 +6,9 @@ import { trpc } from "utils/trpc";
 import { useRouter } from "next/router";
 import { ExclamationIcon } from "@heroicons/react/solid";
 import { PrismaClient } from "@prisma/client";
+import { createContext } from "server/router/context";
 
 export async function getStaticPaths() {
-  const prisma = new PrismaClient();
   const instrument_symbols = await prisma?.instrument.findMany({
     select: {
       instrument_symbol: true,
@@ -28,21 +28,15 @@ export async function getStaticPaths() {
 export async function getStaticProps(
   context: GetStaticPropsContext<{ instrument_symbol: string }>
 ) {
-  const prisma = new PrismaClient();
   const ssg = await createSSGHelpers({
     router: appRouter,
-    // No clue how to pass session/user related data to the context in order to perfom the auth check, quite unfortunate
-    // Could probably move away from TRPC and build a simple express but there's too much built at this point
-    // Maybe if I could somehow get access to the request data for the generated page, but I can't find info about it
-    // Moral of the story: don't use new born tech for interviews, although TRPC is quite nice for everything else
     ctx: {
-      bypass: process.env.INSTRUMENTS_API_URL,
-      prisma,
-    } as any,
+      ...(await createContext()),
+      bypass: process.env.BYPASS_API_KEY as string,
+    },
     transformer: superjson,
   });
   const instrument_symbol = context.params?.instrument_symbol as string;
-
   await ssg.fetchQuery("instruments.bySymbol", { instrument_symbol });
 
   return {
@@ -65,24 +59,23 @@ const InstrumentDetails = (
         instrument_symbol,
       },
     ],
-    { retry: false }
+    { staleTime: 3000 }
   );
-  const router = useRouter();
 
   const { data, error } = instrumentQuery;
 
-  if (error && error.data?.httpStatus === 401) {
-    return (
-      <div className="flex h-full w-full justify-center items-start pt-10">
-        <div className="p-5 border border-red-500 bg-white rounded-lg shadow-lg">
-          <span className="text-red-500 items-center text-5x1 font-bold flex">
-            <ExclamationIcon width="64px" />
-            You have no access to this page
-          </span>
-        </div>
-      </div>
-    );
-  }
+  // if (error && error.data?.httpStatus === 401) {
+  //   return (
+  //     <div className="flex h-full w-full justify-center items-start pt-10">
+  //       <div className="p-5 border border-red-500 bg-white rounded-lg shadow-lg">
+  //         <span className="text-red-500 items-center text-5x1 font-bold flex">
+  //           <ExclamationIcon width="64px" />
+  //           You have no access to this page
+  //         </span>
+  //       </div>
+  //     </div>
+  //   );
+  // }
   return (
     <>
       <div className="p-5">

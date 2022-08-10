@@ -2,6 +2,7 @@
 import * as trpc from "@trpc/server";
 import * as trpcNext from "@trpc/server/adapters/next";
 import { unstable_getServerSession as getServerSession } from "next-auth";
+import { getSession } from "next-auth/react";
 
 import { authOptions as nextAuthOptions } from "../../pages/api/auth/[...nextauth]";
 import { prisma } from "../db/client";
@@ -12,18 +13,17 @@ export const createContext = async (
   const req = opts?.req;
   const res = opts?.res;
 
-  const session =
-    req && res && (await getServerSession(req, res, nextAuthOptions));
+  const session = opts && (await getServerSession(req!, res!, nextAuthOptions));
 
   let user = null;
-  if (session?.id) {
-    user = await prisma.user.findFirst({
-      where: { id: session.id as string },
+  if (session?.email) {
+    user = await prisma.user.findUnique({
+      where: { id: session.email as string },
     });
   }
 
   return {
-    bypass: '',
+    bypass: "",
     req,
     res,
     session,

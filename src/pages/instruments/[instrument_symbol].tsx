@@ -5,8 +5,10 @@ import superjson from "superjson";
 import { trpc } from "utils/trpc";
 import { useRouter } from "next/router";
 import { ExclamationIcon } from "@heroicons/react/solid";
+import { PrismaClient } from "@prisma/client";
 
 export async function getStaticPaths() {
+  const prisma = new PrismaClient();
   const instrument_symbols = await prisma?.instrument.findMany({
     select: {
       instrument_symbol: true,
@@ -26,6 +28,7 @@ export async function getStaticPaths() {
 export async function getStaticProps(
   context: GetStaticPropsContext<{ instrument_symbol: string }>
 ) {
+  const prisma = new PrismaClient();
   const ssg = await createSSGHelpers({
     router: appRouter,
     // No clue how to pass session/user related data to the context in order to perfom the auth check, quite unfortunate
